@@ -1,0 +1,3 @@
+aiogram
+shazamio
+yt-dlp
