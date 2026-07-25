@@ -1,8 +1,9 @@
 import os
 import asyncio
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from shazamio import Shazam
 
 API_TOKEN = "8706389884:AAG8CiAOz4pNx35B7A0tzKnTJsPgsW69a4Q"
@@ -11,6 +12,19 @@ CHANNEL_USERNAME = "@farid_kanal_taj"
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 shazam = Shazam()
+
+# Сервери хурд барои он ки Render ботро "Failed" накунад
+async def handle_web(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_web)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
 
 async def check_sub(user_id: int) -> bool:
     try:
@@ -81,7 +95,9 @@ async def handle_media(message: types.Message):
             os.remove(input_file)
 
 async def main():
+    await start_web_server()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
