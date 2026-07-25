@@ -4,10 +4,9 @@ from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from shazamio import Shazam
-from yt_dlp import YoutubeDL
 
 # Токени бот ва канали шумо
-API_TOKEN = "8706389884:AAG8CiAOz4pNx35B7A0tzKnTJsPgsW69a4Q" # ⚠️ ДИҚҚАТ: Инҷо токени пурраи худро ҷобаҷо кунед!
+API_TOKEN = "8706389884:AAG8CiAOz4pNx35B7A0tzKnTJsPgsW69a4Q"
 CHANNEL_USERNAME = "@farid_kanal_taj"
 
 bot = Bot(token=API_TOKEN)
@@ -31,7 +30,7 @@ def get_sub_keyboard():
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
     if await check_sub(message.from_user.id):
-        await message.answer("Салом! Обунагӣ тасдиқ шуд. Порчаи мусиқӣ ё видеоро фиристед.")
+        await message.answer("Салом! Обунагӣ тасдиқ шуд. Порчаи мусиқӣ, паёми овозӣ ё видеоро фиристед.")
     else:
         await message.answer("Барои истифодабарии бот аввал ба канал обуна шавед!", reply_markup=get_sub_keyboard())
 
@@ -42,7 +41,7 @@ async def check_callback(callback: types.CallbackQuery):
     else:
         await callback.answer("❌ Шумо ҳанӯз ба канал обуна нашудаед!", show_alert=True)
 
-@dp.message(F.voice | F.audio | F.video)
+@dp.message(F.voice | F.audio | F.video | F.video_note)
 async def handle_audio(message: types.Message):
     if not await check_sub(message.from_user.id):
         await message.answer("⚠️ Барои истифодаи бот аввал ба канал обуна шавед!", reply_markup=get_sub_keyboard())
@@ -50,7 +49,12 @@ async def handle_audio(message: types.Message):
 
     msg = await message.answer("⏳ Мусиқӣ коркард ва ҷустуҷӯ шуда истодааст...")
     
-    file_id = message.voice.file_id if message.voice else (message.audio.file_id if message.audio else message.video.file_id)
+    file_id = message.voice.file_id if message.voice else (
+        message.audio.file_id if message.audio else (
+            message.video.file_id if message.video else message.video_note.file_id
+        )
+    )
+    
     file = await bot.get_file(file_id)
     file_path = f"temp_{message.from_user.id}.mp3"
     await bot.download_file(file.file_path, file_path)
@@ -64,37 +68,23 @@ async def handle_audio(message: types.Message):
             if os.path.exists(file_path): os.remove(file_path)
             return
 
-        title = track['title']
-        subtitle = track['subtitle']
-        search_query = f"{title} {subtitle}"
+        title = track.get('title', 'Номаълум')
+        subtitle = track.get('subtitle', 'Номаълум')
         
-        await msg.edit_text(f"🎵 Мусиқӣ пайдо шуд: **{search_query}**\n⏳ Боргирии файли MP3...")
+        res_text = f"✅ **Мусиқӣ пайдо шуд!**\n\n🎵 **Суруд:** {title}\n👤 **Иҷрокунанда:** {subtitle}"
+        await msg.edit_text(res_text, parse_mode="Markdown")
 
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': f'song_{message.from_user.id}.%(ext)s',
-            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
-            'quiet': True
-        }
-
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.extract_info(f"ytsearch1:{search_query}", download=True)
-            filename = f"song_{message.from_user.id}.mp3"
-
-        audio_file = types.FSInputFile(filename)
-        await message.answer_audio(audio_file, caption=f"🎧 **{title}** - {subtitle}")
-
-        if os.path.exists(file_path): os.remove(file_path)
-        if os.path.exists(filename): os.remove(filename)
-        await msg.delete()
-
-    except Exception:
+    except Exception as e:
+        print(f"Error: {e}")
         await msg.edit_text("❌ Ҳангоми ҷустуҷӯ хатогӣ рӯй дод.")
-        if os.path.exists(file_path): os.remove(file_path)
+    
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
-  
+    
